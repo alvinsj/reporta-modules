@@ -12,7 +12,7 @@ Add __reporta-modules__ to your Gemfile
 gem 'reporta-modules'
 ```
 
-Generate default view templates    
+Generate default view templates    /
 `$ rails generate reporta:views` 
 
 Include `Reporta::Reportable` in your view model.  
@@ -138,14 +138,14 @@ end
 #### Defining Required Methods
 
 Define the `rows` method to represent data rows to be used for display.  
-__Note: For the return array of records, each record should comform(respond_to) to the specified columns.  
+__Note: For the return array of records, each record should comform(respond_to) to the specified columns__.  
 For example:  
 
 ```ruby
 class ProjectReport
   include Reporta::Reportable
 
-  column full_name
+  column :full_name
   
   def rows
     Project.select('concat(first_name, last_name) as full_name').all
@@ -165,7 +165,7 @@ The `filters_for` helper generates a html form based on the `filter`s you have d
 <%= filters_for @report %>
 ```
 
-Template:  
+Template: `app/views/reporta/report/_filters.html.erb`  
 ```erb
 <%= form_for @report.form do |f| %>
   <% @report.filters.each do |filter| %>
@@ -210,11 +210,10 @@ Template:
 
 #### Other useful instance methods
 
-After `Reporta::Reportable` is included, useful instance methods are also added.  
-**Methods**
+After `Reporta::Reportable` is included, useful instance methods are also added as below:  
 
-* `filters` - returns hash of filters definition. e.g. `filters[:name] #output struct of filter definition` 
-* `params` - return hash of parameters received from a request.
+* `filters` - returns hash of filters definition. e.g. `filters[:name]` 
+* `params` - return hash of filters' values received from request. e.g. `params[:name]`  
 
 ## License  
 see MIT-LICENSE 
