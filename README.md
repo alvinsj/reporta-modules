@@ -2,20 +2,20 @@
 
 __reporta-modules__ is a Rails gem packed with modules and helpers to help you build your reports. 
 
-It is also a fork from the original [__reporta__](github.com/uts/reporta) Rails engine gem. 
+It is also a [fork](https://github.com/uts/reporta/issues/2) from the original [__reporta__](github.com/uts/reporta) Rails engine gem. 
 
 ## Installation
 
-Add Reporta to your Gemfile
+Add __reporta-modules__ to your Gemfile
 
 ```ruby
 gem 'reporta-modules'
 ```
 
-Generate default view templates in your project  
+Generate default view templates    
 `$ rails generate reporta:views` 
 
-Turn any plain Ruby class into a Reporta class by including `Reporta::Reportable`
+Include `Reporta::Reportable` in your view model.  
 
 ```ruby
 class YourReport
@@ -23,7 +23,7 @@ class YourReport
 end
 ```
 
-## Basic Example
+## Example
 
 ### View Model
 
@@ -48,12 +48,12 @@ end
 ```ruby
 class ProjectReportsController < ApplicationController
   def show
-    @report = ProjectsReport.new(params[:reporta_form])
+    @report = ProjectReport.new(params[:reporta_form])
   end
 end
 ```
 
-### View
+### View Helpers
 
 ```erb
 <%= filters_for @report %>
@@ -64,13 +64,13 @@ end
 
 ## Reporta Modules
 
-### Reporta::Reportable
+### Reporta::Reportable - DSL for report's view model
 
-`Reporta::Reportable` module added some DSL for your covenience to create your report's [__view model/object__](http://blog.codeclimate.com/blog/2012/10/17/7-ways-to-decompose-fat-activerecord-models/).
+`Reporta::Reportable` added DSL for your convenience to create your report's [__view model/object__](http://blog.codeclimate.com/blog/2012/10/17/7-ways-to-decompose-fat-activerecord-models/).
 
-#### Filters
+#### Defining Filters
 
-Report are normally generated based on some filter or a certain criteria.  
+Reports are normally generated based on filters or input from users. Define those filters with `filter filter_name [options]`.  
 For example: 
 
 ```ruby
@@ -82,7 +82,6 @@ class ProjectReport
   filter :status, collection: Status.all, include_blank: false
   filter :exclude_deleted, as: :boolean, default: false
   
-  # required method
   def rows 
     # use filters above to manipulate the results
     projects = Project.where(created_at: start_date..finish_date)
@@ -95,23 +94,27 @@ end
 
 **Filter Options**
 
-* `required` - set to `true` to force a field to be set. Defaults to `false`.
-* `collection` - setting a collection will force the filter to render as a select input.
-* `include_blank` - only has an affect if a collection is set. defaults to `true`.
-* `as` - set the type of field to render. Available values are `:boolean`, `:string`, `:check_boxes`, `:radio`, `:date`. Defaults to `:string`.
+* `required` - set to `true` to specify it as required, defaults to `false`.
+* `collection` - specify a collection to render a select input, will be used in `options_for_select(collection)`
+* `include_blank` - specify whether to include blank in the select input, defaults to `true`.
+* `as` - specify the type of field. e.g. `:boolean`, `:string`, `:check_boxes`, `:radio`, `:date`, defaults to `:string`.  
 * `default` - set the default value for the filter.
-* `label` - set the label of display
+* `label` - set the label for the filter.
 
-#### Columns
+#### Defining Columns
 
-When is comes to displaying the report you will generally want to display a subset of data from the rows, custom calculations or maybe some associated data. Here's a quick example of defining a variety of columns.
+Tables will be generated in your report, defining columns with DSL allows the flexibility of changes on what will be display. Define those columns with `column column_name [options]`.     
+For example:  
 
 ```ruby
 class ProjectReport
   include Reporta::Reportable
-
+  
+  def indexed; @index||=0; @index += 1; end
+  
+  column :indexed, title: 'No.:'
   column :name
-  column :formatted_date, title: 'Created at'
+  column :created_at, helper: :readable_date, title: 'Created at'
   column :manager, data_chain: 'manager.full_name'
   column :cost, class_names: 'sum currency'
 
@@ -119,45 +122,50 @@ class ProjectReport
     Projects.all
   end
 
-  def formatted_date(project)
-    project.created_at.strftime("%b %d, %Y")
+  def readable_date(value)
+    value.strftime("%b %d, %Y")
   end
 end
 ```
 
 **Column Options**
 
-* `title` - set a custom title for the colum. Defaults to the column name
+* `title` - set a custom title, defaults to the `column.humanize`
 * `data_chain` - provide a chain of methods to call in order to fetch the data.
-* `class_names` - these classes will be applied to the column to allow for custom styling or Javascript hooks.
-* `helper` - format your column
+* `class_names` - specify html class attribute for column, useful for custom styling or Javascript hooks.
+* `helper` - specify view helper for the column
 
-### Required Methods
+#### Defining Required Methods
 
-As a very minimum you need to define the `rows` method which will return the rows that are displayed in the report. 
+Define the `rows` method to represent data rows to be used for display.  
+__Note: For the return array of records, each record should comform(respond_to) to the specified columns.  
+For example:  
 
 ```ruby
 class ProjectReport
   include Reporta::Reportable
 
+  column full_name
+  
   def rows
-    Project.all
+    Project.select('concat(first_name, last_name) as full_name').all
   end
 end
 ```
 
 
-#### Default View Templates
+#### Generating View Templates
 
-In order to render the results of your report there are a variety of different ways to access and display the data. If you have any filters defined you will probably want to display a form for the user to enter parameters into.
+View templates are available after running `rails generate reporta:views`, it will generate views in `app/views/reporta` folder for you to customize. These templates are required for the view helpers:
 
-The `filters_for` helper generates a basic form based on the filters you have defined.
+##### filters_for
+The `filters_for` helper generates a html form based on the `filter`s you have defined.
 
 ```erb
 <%= filters_for @report %>
 ```
-If we look at how `filters_for` is created you can see the underlying data structures used to render the form.
 
+Template:  
 ```erb
 <%= form_for @report.form do |f| %>
   <% @report.filters.each do |filter| %>
@@ -167,13 +175,14 @@ If we look at how `filters_for` is created you can see the underlying data struc
   <%= f.submit %>
 <% end %>
 ```
-To display the results of the report you can simply use the `table_for` helper method.
+##### table_for
+The `table_for` helper generates a html table based on the `column`s you have defined.
 
 ```erb
 <%= table_for @report %>
 ```
-Or for more detailed control you can build the table yourself.
 
+Template:  
 ```erb
 <table>
   <thead>
@@ -198,6 +207,14 @@ Or for more detailed control you can build the table yourself.
   </tbody>
 </table>
 ```
+
+#### Other useful instance methods
+
+After `Reporta::Reportable` is included, useful instance methods are also added.  
+**Methods**
+
+* `filters` - returns hash of filters definition. e.g. `filters[:name] #output struct of filter definition` 
+* `params` - return hash of parameters received from a request.
 
 ## License  
 see MIT-LICENSE 
