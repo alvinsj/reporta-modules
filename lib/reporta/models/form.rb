@@ -59,6 +59,7 @@ module Reporta
       filters.each do |name, filter|
         value = values[name].present? ? values[name] : filter.default
         value = convert_boolean(values[name]) if filter.boolean?
+        @params[name] = value
 
         self.send "#{name}=", value
       end
