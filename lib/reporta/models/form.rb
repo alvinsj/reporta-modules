@@ -37,7 +37,7 @@ module Reporta
 
     def initialize(filters, values={})
       @filters = filters
-      @params = values
+      @params = ActiveSupport::HashWithIndifferentAccess.new
       self.class.send :attr_accessor, *filters.keys
       self.filter_applied = values.any?
       set_values filters, values
